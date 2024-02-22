@@ -1,0 +1,131 @@
+ //////////////////////////////////////////////////////////////////////////////////////////////
+                                   part -1
+/////////////////////////////////////////////////////////////////////////////////////////////
+                                 otpSlice.js 
+/////////////////////////////////////////////////////////////////////
+
+
+
+
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+
+export const verifyOTP = createAsyncThunk(
+  'otp/verifyOTP',
+  async (otp, thunkAPI) => {
+    try {
+      const response = await fetch('https://your-api-url/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ otp }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, message: 'OTP verified successfully' };
+      } else {
+        return { success: false, message: data.message };
+      }
+    } catch (error) {
+      return thunkAPI.rejectWithValue('Something went wrong');
+    }
+  }
+);
+
+const otpSlice = createSlice({
+  name: 'otp',
+  initialState: {
+    verifying: false,
+    verified: false,
+    error: null,
+  },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(verifyOTP.pending, (state) => {
+        state.verifying = true;
+        state.error = null;
+      })
+      .addCase(verifyOTP.fulfilled, (state, action) => {
+        state.verifying = false;
+        state.verified = action.payload.success;
+        state.error = action.payload.message;
+      })
+      .addCase(verifyOTP.rejected, (state, action) => {
+        state.verifying = false;
+        state.error = action.payload;
+      });
+  },
+});
+
+export default otpSlice;
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+                       part  - 2
+/////////////////////////////////////////////////////////////////////////////
+                       store.js
+/////////////////////////////////////////////////////////////////
+
+
+import { configureStore } from '@reduxjs/toolkit';
+import otpSlice from './otpSlice';
+
+const store = configureStore({
+  reducer: {
+    otp: otpSlice.reducer,
+  },
+});
+
+export default store;
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+                        part -3
+////////////////////////////////////////////////////////////////////////////////
+            OTPVerificationForm.js
+////////////////////////////////////////////////////////////////////////////////
+
+import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { verifyOTP } from './otpSlice';
+
+function OTPVerificationForm() {
+  const [otp, setOTP] = useState('');
+  const dispatch = useDispatch();
+  const verifying = useSelector((state) => state.otp.verifying);
+  const verified = useSelector((state) => state.otp.verified);
+  const error = useSelector((state) => state.otp.error);
+
+  const handleChange = (e) => {
+    setOTP(e.target.value);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    dispatch(verifyOTP(otp));
+  };
+
+  return (
+    <div>
+      <h1>OTP Verification</h1>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          value={otp}
+          onChange={handleChange}
+          placeholder="Enter OTP"
+        />
+        <button type="submit" disabled={verifying}>
+          {verifying ? 'Verifying...' : 'Verify OTP'}
+        </button>
+      </form>
+      {error && <p>{error}</p>}
+      {verified && <p>OTP verified successfully!</p>}
+    </div>
+  );
+}
+
+export default OTPVerificationForm;
+
